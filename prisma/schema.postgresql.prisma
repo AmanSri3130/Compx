@@ -1,0 +1,371 @@
+// CompX - PostgreSQL Production Schema (Vercel + Supabase / Neon)
+// To use: replace schema.prisma datasource with this or rename this to schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String
+  phone         String?
+  avatar        String?
+  role          String         @default("STUDENT")
+  permissions   String         @default("[\"all\"]")
+  isBlocked     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  orders        Order[]
+  downloads     Download[]
+  reviews       Review[]
+  wishlist      Wishlist[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  icon        String?
+  image       String?
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("CategoryHierarchy")
+  order       Int        @default(0)
+  showOnHome  Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  notes       Note[]
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+model Note {
+  id               String       @id @default(cuid())
+  title            String
+  slug             String       @unique
+  shortDescription String
+  fullDescription  String
+  coverImage       String
+  price            Float        @default(0)
+  mrp              Float        @default(0)
+  isFree           Boolean      @default(false)
+  hasGst           Boolean      @default(false)
+  gstPercent       Float        @default(0)
+  categoryId       String
+  category         Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subCategory      String?
+  subject          String?
+  classLevel       String?
+  semester         String?
+  pagesCount       Int          @default(0)
+  language         String       @default("English")
+  author           String?
+  fileSize         String?
+  format           String       @default("PDF")
+  syllabus         String?
+  whatsIncluded    String       @default("[]")
+  tags             String       @default("")
+  difficulty       String       @default("Medium")
+  editionYear      String?
+  status           String       @default("PUBLISHED")
+  isFeatured       Boolean      @default(false)
+  isTrending       Boolean      @default(false)
+  isBestSeller     Boolean      @default(false)
+  pdfPath          String
+  previewPdfPath   String?
+  enableWatermark  Boolean      @default(true)
+  version          Int          @default(1)
+  viewsCount       Int          @default(0)
+  downloadsCount   Int          @default(0)
+  salesCount       Int          @default(0)
+  metaTitle        String?
+  metaDescription  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  images           NoteImage[]
+  files            NoteFile[]
+  reviews          Review[]
+  orderItems       OrderItem[]
+  wishlists        Wishlist[]
+  downloads        Download[]
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([isFree])
+  @@index([status])
+}
+
+model NoteImage {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  url       String
+  order     Int      @default(0)
+  caption   String?
+  createdAt DateTime @default(now())
+
+  @@index([noteId])
+}
+
+model NoteFile {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  title     String
+  filePath  String
+  fileSize  String?
+  fileType  String   @default("PDF")
+  createdAt DateTime @default(now())
+
+  @@index([noteId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id              String      @id
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalAmount     Float
+  discountAmount  Float       @default(0)
+  finalAmount     Float
+  status          String      @default("PENDING")
+  paymentMode     String      @default("UPI_QR")
+  couponId        String?
+  coupon          Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  adminNotes      String?
+  rejectionReason String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+  payment         Payment?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  price     Float
+  title     String
+
+  @@index([orderId])
+  @@index([noteId])
+}
+
+model Payment {
+  id               String    @id @default(cuid())
+  orderId          String    @unique
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  mode             String    @default("UPI_QR")
+  amount           Float
+  status           String    @default("PENDING")
+  utr              String?   @unique
+  screenshotUrl    String?
+  gatewayPaymentId String?
+  gatewayOrderId   String?
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([utr])
+  @@index([status])
+}
+
+model Coupon {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  discountType   String    @default("PERCENTAGE")
+  discountValue  Float
+  minOrderAmount Float     @default(0)
+  maxDiscount    Float?
+  usageLimit     Int?
+  usedCount      Int       @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  isActive       Boolean   @default(true)
+  categoryIds    String    @default("[]")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  orders         Order[]
+
+  @@index([code])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  noteId     String
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating     Int      @default(5)
+  title      String?
+  comment    String
+  isApproved Boolean  @default(true)
+  adminReply String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([noteId])
+  @@index([userId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, noteId])
+  @@index([userId])
+}
+
+model Download {
+  id             String   @id @default(cuid())
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  noteId         String
+  note           Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  ipAddress      String?
+  isFreeDownload Boolean  @default(false)
+  downloadedAt   DateTime @default(now())
+
+  @@index([noteId])
+  @@index([userId])
+}
+
+model SiteSetting {
+  id                     String   @id @default("default")
+  siteName               String   @default("CompX")
+  tagline                String   @default("Study smart. Score higher.")
+  logoUrl                String?
+  faviconUrl             String?
+  upiId                  String   @default("compx@upi")
+  upiPayeeName           String   @default("CompX Education")
+  upiQrImageUrl          String?
+  whatsappNumber         String   @default("919876543210")
+  whatsappWelcomeMsg     String   @default("Hello CompX, I want to inquire about notes.")
+  razorpayEnabled        Boolean  @default(false)
+  razorpayKeyId          String?
+  razorpayKeySecret      String?
+  freeNotesRequireLogin  Boolean  @default(false)
+  enableWatermark        Boolean  @default(true)
+  signedUrlExpiryMinutes Int      @default(60)
+  maintenanceMode        Boolean  @default(false)
+  contactEmail           String   @default("support@compx.in")
+  contactPhone           String   @default("+91 98765 43210")
+  telegramGroupUrl       String?
+  whatsappCommunityUrl   String?
+  instagramUrl           String?
+  youtubeUrl             String?
+  noticeBarText          String?
+  noticeBarEnabled       Boolean  @default(true)
+  googleAnalyticsId      String?
+  metaPixelId            String?
+  updatedAt              DateTime @updatedAt
+}
+
+model Banner {
+  id         String   @id @default(cuid())
+  title      String
+  subtitle   String?
+  badge      String?
+  linkUrl    String
+  imageUrl   String?
+  bgGradient String   @default("from-blue-600 to-indigo-800")
+  isActive   Boolean  @default(true)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model Page {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  content         String
+  metaTitle       String?
+  metaDescription String?
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("NEW")
+  createdAt DateTime @default(now())
+
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName   String?
+  action     String
+  entityType String
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([entityType])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO")
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+

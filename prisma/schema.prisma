@@ -1,0 +1,326 @@
+// Prisma schema for CompX - E-Notes Marketplace
+// Powered by MongoDB Atlas
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String         @unique
+  password      String
+  phone         String?
+  avatar        String?
+  role          String         @default("STUDENT") // STUDENT, ADMIN, SUPER_ADMIN
+  permissions   String         @default("[\"all\"]") // JSON array of permissions
+  isBlocked     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  orders        Order[]
+  downloads     Download[]
+  reviews       Review[]
+  wishlist      Wishlist[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+model Category {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String     @unique
+  description String?
+  icon        String?    // Lucide icon identifier or image URL
+  image       String?
+  parentId    String?    @db.ObjectId
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children    Category[] @relation("CategoryHierarchy")
+  order       Int        @default(0)
+  showOnHome  Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  notes       Note[]
+}
+
+model Note {
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  slug             String       @unique
+  shortDescription String
+  fullDescription  String
+  coverImage       String
+  price            Float        @default(0) // ₹ Price (0 for free)
+  mrp              Float        @default(0) // ₹ MRP for strike-through discount
+  isFree           Boolean      @default(false)
+  hasGst           Boolean      @default(false)
+  gstPercent       Float        @default(0)
+  categoryId       String       @db.ObjectId
+  category         Category     @relation(fields: [categoryId], references: [id])
+  subCategory      String?
+  subject          String?
+  classLevel       String?
+  semester         String?
+  pagesCount       Int          @default(0)
+  language         String       @default("English")
+  author           String?
+  fileSize         String?
+  format           String       @default("PDF")
+  syllabus         String?
+  whatsIncluded    String       @default("[]") // JSON string of bullet points
+  tags             String       @default("") // Comma-separated tags
+  difficulty       String       @default("Medium") // Easy, Medium, Hard, Exam-Oriented
+  editionYear      String?
+  status           String       @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  isFeatured       Boolean      @default(false)
+  isTrending       Boolean      @default(false)
+  isBestSeller     Boolean      @default(false)
+  pdfPath          String       // Private storage path / key
+  previewPdfPath   String?      // Public preview sample pages path
+  enableWatermark  Boolean      @default(true)
+  version          Int          @default(1)
+  viewsCount       Int          @default(0)
+  downloadsCount   Int          @default(0)
+  salesCount       Int          @default(0)
+  metaTitle        String?
+  metaDescription  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  images           NoteImage[]
+  files            NoteFile[]
+  reviews          Review[]
+  orderItems       OrderItem[]
+  wishlists        Wishlist[]
+  downloads        Download[]
+}
+
+model NoteImage {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  noteId    String   @db.ObjectId
+  note      Note     @relation(fields: [noteId], references: [id])
+  url       String
+  order     Int      @default(0)
+  caption   String?
+  createdAt DateTime @default(now())
+}
+
+model NoteFile {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  noteId    String   @db.ObjectId
+  note      Note     @relation(fields: [noteId], references: [id])
+  title     String
+  filePath  String
+  fileSize  String?
+  fileType  String   @default("PDF")
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id              String      @id @map("_id") // Human-readable e.g. CPX-20261114-1001
+  userId          String?     @db.ObjectId
+  user            User?       @relation(fields: [userId], references: [id])
+  totalAmount     Float       // in INR ₹
+  discountAmount  Float       @default(0)
+  finalAmount     Float       // in INR ₹
+  status          String      @default("PENDING") // PENDING, PENDING_VERIFICATION, PAID, REJECTED, REFUNDED, CANCELLED
+  paymentMode     String      @default("UPI_QR")  // UPI_QR, WHATSAPP, GATEWAY_RAZORPAY, FREE_GRANT
+  couponId        String?     @db.ObjectId
+  coupon          Coupon?     @relation(fields: [couponId], references: [id])
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  adminNotes      String?
+  rejectionReason String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+  payment         Payment?
+}
+
+model OrderItem {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  noteId    String   @db.ObjectId
+  note      Note     @relation(fields: [noteId], references: [id])
+  price     Float
+  title     String
+}
+
+model Payment {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  orderId          String    @unique
+  order            Order     @relation(fields: [orderId], references: [id])
+  mode             String    @default("UPI_QR") // UPI_QR, WHATSAPP, GATEWAY_RAZORPAY
+  amount           Float
+  status           String    @default("PENDING") // PENDING, PENDING_VERIFICATION, PAID, REJECTED, REFUNDED
+  utr              String?   @unique
+  screenshotUrl    String?
+  gatewayPaymentId String?
+  gatewayOrderId   String?
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Coupon {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  code           String    @unique
+  discountType   String    @default("PERCENTAGE") // PERCENTAGE, FLAT
+  discountValue  Float
+  minOrderAmount Float     @default(0)
+  maxDiscount    Float?
+  usageLimit     Int?
+  usedCount      Int       @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  isActive       Boolean   @default(true)
+  categoryIds    String    @default("[]") // JSON string of category IDs
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  orders         Order[]
+}
+
+model Review {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  noteId     String   @db.ObjectId
+  note       Note     @relation(fields: [noteId], references: [id])
+  userId     String   @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id])
+  rating     Int      @default(5)
+  title      String?
+  comment    String
+  isApproved Boolean  @default(true)
+  adminReply String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Wishlist {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  noteId    String   @db.ObjectId
+  note      Note     @relation(fields: [noteId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, noteId])
+}
+
+model Download {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String?  @db.ObjectId
+  user           User?    @relation(fields: [userId], references: [id])
+  noteId         String   @db.ObjectId
+  note           Note     @relation(fields: [noteId], references: [id])
+  ipAddress      String?
+  isFreeDownload Boolean  @default(false)
+  downloadedAt   DateTime @default(now())
+}
+
+model SiteSetting {
+  id                     String   @id @map("_id") // "default"
+  siteName               String   @default("CompX")
+  tagline                String   @default("Study smart. Score higher.")
+  logoUrl                String?
+  faviconUrl             String?
+  upiId                  String   @default("compx@upi")
+  upiPayeeName           String   @default("CompX Education")
+  upiQrImageUrl          String?
+  whatsappNumber         String   @default("919876543210")
+  whatsappWelcomeMsg     String   @default("Hello CompX, I want to inquire about notes.")
+  razorpayEnabled        Boolean  @default(false)
+  razorpayKeyId          String?
+  razorpayKeySecret      String?
+  freeNotesRequireLogin  Boolean  @default(false)
+  enableWatermark        Boolean  @default(true)
+  signedUrlExpiryMinutes Int      @default(60)
+  maintenanceMode        Boolean  @default(false)
+  contactEmail           String   @default("support@compx.in")
+  contactPhone           String   @default("+91 98765 43210")
+  telegramGroupUrl       String?
+  whatsappCommunityUrl   String?
+  instagramUrl           String?
+  youtubeUrl             String?
+  noticeBarText          String?
+  noticeBarEnabled       Boolean  @default(true)
+  googleAnalyticsId      String?
+  metaPixelId            String?
+  updatedAt              DateTime @updatedAt
+}
+
+model Banner {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  title      String
+  subtitle   String?
+  badge      String?
+  linkUrl    String
+  imageUrl   String?
+  bgGradient String   @default("from-blue-600 to-indigo-800")
+  isActive   Boolean  @default(true)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model Page {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug            String   @unique
+  title           String
+  content         String
+  metaTitle       String?
+  metaDescription String?
+  updatedAt       DateTime @updatedAt
+}
+
+model ContactMessage {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("NEW") // NEW, REPLIED, ARCHIVED
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String?  @db.ObjectId
+  user       User?    @relation(fields: [userId], references: [id])
+  userName   String?
+  action     String
+  entityType String
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String?  @db.ObjectId // null = Admin notification
+  user      User?    @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   @default("INFO") // ORDER, PAYMENT, NOTE, SYSTEM
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

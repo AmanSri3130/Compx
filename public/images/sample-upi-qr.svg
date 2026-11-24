@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+    <rect width="300" height="300" fill="#ffffff" rx="16"/>
+    <rect x="25" y="25" width="70" height="70" fill="#1e3a8a" rx="8"/>
+    <rect x="35" y="35" width="50" height="50" fill="#ffffff" rx="4"/>
+    <rect x="45" y="45" width="30" height="30" fill="#1e3a8a" rx="2"/>
+    <rect x="205" y="25" width="70" height="70" fill="#1e3a8a" rx="8"/>
+    <rect x="215" y="35" width="50" height="50" fill="#ffffff" rx="4"/>
+    <rect x="225" y="45" width="30" height="30" fill="#1e3a8a" rx="2"/>
+    <rect x="25" y="205" width="70" height="70" fill="#1e3a8a" rx="8"/>
+    <rect x="35" y="215" width="50" height="50" fill="#ffffff" rx="4"/>
+    <rect x="45" y="225" width="30" height="30" fill="#1e3a8a" rx="2"/>
+    <circle cx="150" cy="150" r="28" fill="#f97316"/>
+    <text x="150" y="156" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">UPI</text>
+    <rect x="115" y="40" width="20" height="40" fill="#1e3a8a"/>
+    <rect x="150" y="40" width="30" height="20" fill="#1e3a8a"/>
+    <rect x="120" y="100" width="60" height="20" fill="#1e3a8a"/>
+    <rect x="110" y="200" width="30" height="50" fill="#1e3a8a"/>
+    <rect x="160" y="210" width="40" height="20" fill="#1e3a8a"/>
+    <rect x="220" y="120" width="50" height="30" fill="#1e3a8a"/>
+    <rect x="210" y="170" width="30" height="40" fill="#1e3a8a"/>
+    <text x="150" y="285" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#475569" text-anchor="middle">Scan & Pay via any UPI App</text>
+  </svg>
